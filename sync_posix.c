@@ -21,6 +21,8 @@ void* HiloA(void* arg) {
     pthread_exit(NULL);
 }
 
+
+
 // Hilo B: Desarrollado por Integrante 2
 void* HiloB(void* arg) {
     // Esperar señal de A (P / Wait)
@@ -47,29 +49,34 @@ void* HiloC(void* arg) {
     pthread_exit(NULL);
 }
 
-int main(int argc, char *argv[]) {
+iint main(int argc, char *argv[]) {
     pthread_t hA, hB, hC;
 
-    // Inicializar semáforos POSIX
-    // sem_init(sem, pshared=0 [local al proceso], valor_inicial=0)
-    sem_init(&semAB, 0, 0);
+    // Inicializar Mutex
+    pthread_mutex_init(&mutex, NULL);
+
+    // Inicializar Semáforos en 0
+    sem_init(&semAC, 0, 0);
+    sem_init(&semCB, 0, 0);
     sem_init(&semBC, 0, 0);
 
-    printf("=== INICIO DEL TALLER DE SINCRONIZACIÓN (POSIX) ===\n\n");
+    printf("=== INICIO DE LA SUMA SINCRONIZADA (A -> C -> B -> C) ===\n\n");
 
-    // Creación de hilos en orden inverso para probar la sincronización
+    // Creación de hilos
     pthread_create(&hC, NULL, HiloC, NULL);
     pthread_create(&hB, NULL, HiloB, NULL);
     pthread_create(&hA, NULL, HiloA, NULL);
 
-    // Esperar la terminación de los tres hilos
+    // Esperar terminación de hilos
     pthread_join(hA, NULL);
     pthread_join(hB, NULL);
     pthread_join(hC, NULL);
 
-    // Destruir semáforos
-    sem_destroy(&semAB);
+    // Destruir recursos
+    sem_destroy(&semAC);
+    sem_destroy(&semCB);
     sem_destroy(&semBC);
+    pthread_mutex_destroy(&mutex);
 
     printf("\n=== FIN DE LA EJECUCIÓN ===\n");
     return 0;
