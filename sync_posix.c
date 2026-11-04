@@ -9,6 +9,8 @@ sem_t semAB;
 sem_t semBC;
 
 // Hilo A: Desarrollado por Integrante 1
+printf("[Hilo A Dev: ISMAEL QUINTERO] \n");
+
 void* HiloA(void* arg) {
     printf("[Hilo A] Paso 1: Iniciando preparación de datos...\n");
     sleep(1); // Simula tiempo de procesamiento (1 segundo)
