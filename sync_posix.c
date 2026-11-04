@@ -4,13 +4,18 @@
 #include <semaphore.h>
 #include <unistd.h> // Para sleep() en segundos
 
-// Declaración de semáforos POSIX
+// ==========================================
+// 1. DECLARACIÓN DE RECURSOS GLOBALES
+// ==========================================
 sem_t semAB;
 sem_t semBC;
+sem_t semAC; // Añadido para la nueva sincronización con Hilo C
+sem_t semCB; // Añadido para la nueva sincronización con Hilo C
+
+pthread_mutex_t mutex; // Declaración del Mutex
+int variable_compartida = 0; // Variable compartida para las cifras
 
 // Hilo A: Desarrollado por Integrante 1
-printf("[Hilo A Dev: ISMAEL QUINTERO] \n");
-
 void* HiloA(void* arg) {
     printf("[Hilo A] Paso 1: Iniciando preparación de datos...\n");
     sleep(1); // Simula tiempo de procesamiento (1 segundo)
@@ -21,46 +26,81 @@ void* HiloA(void* arg) {
     pthread_exit(NULL);
 }
 
-
-
-// Hilo B: Desarrollado por Integrante 2
+// ==========================================
+// 2. TU CÓDIGO DEL ARCHIVO B (AQUÍ VA)
+// ==========================================
 void* HiloB(void* arg) {
-    // Esperar señal de A (P / Wait)
-    sem_wait(&semAB);
-    
-    printf("[Hilo B] Paso 2: Procesando información de Hilo A...\n");
-    sleep(1);
-    printf("[Hilo B] Paso 2: Procesamiento terminado. Liberando Hilo C.\n");
-    
-    // Incrementar semáforo semBC (V / Signal)
-    sem_post(&semBC);
+    int cifra2 = 25; // Número asignado por Luis Alfaro
+
+    // Esperar notificación de Hilo C (Parte 1)
+    sem_wait(&semCB);
+
+    printf("[Hilo B Dev: Luis Alfaro] Paso 3: Generando Cifra 2 (%d)...\n", cifra2);
+
+    // Exclusión Mutua al escribir en variable_compartida
+    pthread_mutex_lock(&mutex);
+    variable_compartida = cifra2;
+    pthread_mutex_unlock(&mutex);
+
+    printf("[Hilo B] Cifra 2 guardada. Notificando a Hilo C...\n");
+    sem_post(&semBC); // Notifica al Hilo C (Parte 2)
+
     pthread_exit(NULL);
 }
 
-// Hilo C: Desarrollado por Integrante 3
+// Hilo C: Desarrollado por Integrante 3 (Ajustado a tu lógica de dos partes)
 void* HiloC(void* arg) {
-    // Esperar señal de B (P / Wait)
-    sem_wait(&semBC);
-    
-    printf("[Hilo C] Paso 3: Consolidando y mostrando resultados finales.\n");
-    sleep(1);
-    printf("[Hilo C] Paso 3: Proceso completo finalizado exitosamente.\n");
-    
+    int local_cifra1 = 0;
+    int local_cifra2 = 0;
+
+    // --- PARTE 1: Procesar Cifra 1 ---
+    sem_wait(&semAC); // Espera a Hilo A
+
+    printf("[Hilo C Dev: Integrante 3] Paso 2: Leyendo Cifra 1...\n");
+    pthread_mutex_lock(&mutex);
+    local_cifra1 = variable_compartida;
+    variable_compartida = 0; // Limpia la variable compartida
+    pthread_mutex_unlock(&mutex);
+
+    printf("[Hilo C] Cifra 1 recibida: %d. Limpiada variable compartida. Notificando a Hilo B...\n", local_cifra1);
+    sem_post(&semCB); // Notifica al Hilo B
+
+    // --- PARTE 2: Procesar Cifra 2 y Sumar ---
+    sem_wait(&semBC); // Espera a Hilo B
+
+    printf("[Hilo C Dev: Integrante 3] Paso 4: Leyendo Cifra 2...\n");
+    pthread_mutex_lock(&mutex);
+    local_cifra2 = variable_compartida;
+    pthread_mutex_unlock(&mutex);
+
+    // Cálculo e impresión de resultados
+    int suma = local_cifra1 + local_cifra2;
+    printf("\n==========================================");
+    printf("\n[Hilo C] DESGLOSE FINAL Y SUMA:");
+    printf("\n -> Cifra 1 (Hilo A): %d", local_cifra1);
+    printf("\n -> Cifra 2 (Hilo B): %d", local_cifra2);
+    printf("\n -> SUMA TOTAL: %d", suma);
+    printf("\n==========================================\n");
+
     pthread_exit(NULL);
 }
 
-iint main(int argc, char *argv[]) {
+// ==========================================
+// 3. FUNCIÓN PRINCIPAL (MAIN CORREGIDO)
+// ==========================================
+int main(int argc, char *argv[]) { // Corregido 'iint' por 'int'
     pthread_t hA, hB, hC;
 
     // Inicializar Mutex
     pthread_mutex_init(&mutex, NULL);
 
-    // Inicializar Semáforos en 0
+    // Inicializar Semáforos
+    sem_init(&semAB, 0, 0);
+    sem_init(&semBC, 0, 0);
     sem_init(&semAC, 0, 0);
     sem_init(&semCB, 0, 0);
-    sem_init(&semBC, 0, 0);
 
-    printf("=== INICIO DE LA SUMA SINCRONIZADA (A -> C -> B -> C) ===\n\n");
+    printf("=== INICIO DE LA SUMA SINCRONIZADA ===\n\n");
 
     // Creación de hilos
     pthread_create(&hC, NULL, HiloC, NULL);
@@ -72,10 +112,11 @@ iint main(int argc, char *argv[]) {
     pthread_join(hB, NULL);
     pthread_join(hC, NULL);
 
-    // Destruir recursos
+    // Destruir recursos y semáforos
+    sem_destroy(&semAB);
+    sem_destroy(&semBC);
     sem_destroy(&semAC);
     sem_destroy(&semCB);
-    sem_destroy(&semBC);
     pthread_mutex_destroy(&mutex);
 
     printf("\n=== FIN DE LA EJECUCIÓN ===\n");
